@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"strings"
@@ -18,9 +19,11 @@ func CreateMockUserRepo() *MockedUserRepo {
 
 type MockedUserRepo struct {
 	model.UserRepository
-	Error         error
-	Data          map[string]*model.User
-	UserLibraries map[string][]int // userID -> libraryIDs
+	Error           error
+	Data            map[string]*model.User
+	UserLibraries   map[string][]int // userID -> libraryIDs
+	RatingStatsData []model.UserRatingStats
+	RatingItemsData []model.RatedItem
 }
 
 func (u *MockedUserRepo) CountAll(qo ...model.QueryOptions) (int64, error) {
@@ -55,6 +58,18 @@ func (u *MockedUserRepo) FindByUsername(username string) (*model.User, error) {
 
 func (u *MockedUserRepo) FindByUsernameWithPassword(username string) (*model.User, error) {
 	return u.FindByUsername(username)
+}
+
+func (u *MockedUserRepo) FindFirstAdmin() (*model.User, error) {
+	if u.Error != nil {
+		return nil, u.Error
+	}
+	for _, usr := range u.Data {
+		if usr.IsAdmin {
+			return usr, nil
+		}
+	}
+	return nil, model.ErrNotFound
 }
 
 func (u *MockedUserRepo) Get(id string) (*model.User, error) {
@@ -132,6 +147,20 @@ func (u *MockedUserRepo) SetUserLibraries(userID string, libraryIDs []int) error
 	}
 	u.UserLibraries[userID] = libraryIDs
 	return nil
+}
+
+func (u *MockedUserRepo) RatingStats(ctx context.Context, userID string) ([]model.UserRatingStats, error) {
+	if u.Error != nil {
+		return nil, u.Error
+	}
+	return u.RatingStatsData, nil
+}
+
+func (u *MockedUserRepo) RatingItems(ctx context.Context, userID, itemType string, rating int) ([]model.RatedItem, error) {
+	if u.Error != nil {
+		return nil, u.Error
+	}
+	return u.RatingItemsData, nil
 }
 
 func (u *MockedUserRepo) Delete(id string) error {
